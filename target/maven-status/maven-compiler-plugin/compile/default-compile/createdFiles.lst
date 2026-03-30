@@ -1,0 +1,3 @@
+com/tokenmanager/TokenManagerApplication.class
+com/tokenmanager/model/Token.class
+com/tokenmanager/repository/TokenRepository.class

@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOKEN VAULT — Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #040810;
+            --bg2: #080f1a;
+            --bg3: #0d1826;
+            --border: #0e3a5c;
+            --border-glow: #1a6ea8;
+            --accent: #00d4ff;
+            --accent2: #00ff9d;
+            --danger: #ff3366;
+            --warn: #ffaa00;
+            --text: #8fb8d0;
+            --text-bright: #d0eaf5;
+            --grid-color: rgba(0,212,255,0.04);
+            --glow-blue: 0 0 20px rgba(0,212,255,0.3);
+            --glow-green: 0 0 20px rgba(0,255,157,0.3);
+            --glow-red: 0 0 20px rgba(255,51,102,0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Scan line animation */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -100%;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: linear-gradient(transparent, rgba(0,212,255,0.03), transparent);
+            animation: scanline 8s linear infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @keyframes scanline {
+            0% { top: -200px; }
+            100% { top: 100vh; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 24px 0;
+            margin-bottom: 32px;
+            position: relative;
+        }
+
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--accent);
+            text-shadow: var(--glow-blue);
+            letter-spacing: 4px;
+        }
+
+        .logo-sub {
+            font-size: 11px;
+            color: var(--text);
+            letter-spacing: 3px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,212,255,0.05);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 2px;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent2);
+            box-shadow: var(--glow-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .clock {
+            font-family: 'Orbitron', monospace;
+            font-size: 13px;
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+
+        /* ===== STATS CARDS ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+
+        .stat-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 3px;
+            height: 100%;
+        }
+
+        .stat-card.total::before { background: var(--accent); box-shadow: var(--glow-blue); }
+        .stat-card.valid::before { background: var(--accent2); box-shadow: var(--glow-green); }
+        .stat-card.expired::before { background: var(--danger); box-shadow: var(--glow-red); }
+
+        .stat-label {
+            font-size: 10px;
+            letter-spacing: 3px;
+            opacity: 0.6;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .stat-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-card.total .stat-number { color: var(--accent); text-shadow: var(--glow-blue); }
+        .stat-card.valid .stat-number { color: var(--accent2); text-shadow: var(--glow-green); }
+        .stat-card.expired .stat-number { color: var(--danger); text-shadow: var(--glow-red); }
+
+        .stat-card .stat-icon {
+            position: absolute;
+            right: 20px;
+            bottom: 16px;
+            font-size: 40px;
+            opacity: 0.06;
+        }
+
+        /* ===== NEXT TOKEN PROGRESS ===== */
+        .next-token-bar {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            padding: 20px 24px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .next-token-label {
+            font-size: 11px;
+            letter-spacing: 2px;
+            opacity: 0.6;
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 4px;
+            background: var(--bg3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            box-shadow: var(--glow-blue);
+            transition: width 1s linear;
+            border-radius: 2px;
+        }
+
+        .next-token-countdown {
+            font-family: 'Orbitron', monospace;
+            font-size: 16px;
+            color: var(--accent);
+            min-width: 52px;
+            text-align: right;
+        }
+
+        .btn-generate {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 2px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-generate:hover {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: var(--glow-blue);
+        }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text);
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-bottom: -1px;
+            transition: all 0.2s;
+            background: transparent;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        .tab:hover { color: var(--accent); }
+
+        .tab.active {
+            background: var(--bg2);
+            border-color: var(--border);
+            border-bottom-color: var(--bg2);
+            color: var(--accent);
+        }
+
+        .tab .tab-count {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 1px 6px;
+            font-size: 10px;
+            border-radius: 2px;
+            background: rgba(0,212,255,0.1);
+        }
+
+        .tab.valid-tab .tab-count { background: rgba(0,255,157,0.1); color: var(--accent2); }
+        .tab.expired-tab .tab-count { background: rgba(255,51,102,0.1); color: var(--danger); }
+
+        /* ===== TABLE ===== */
+        .table-panel {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-top: none;
+            display: none;
+        }
+
+        .table-panel.active { display: block; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text);
+            opacity: 0.5;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg3);
+            font-weight: normal;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(14,58,92,0.4);
+            transition: background 0.15s;
+        }
+
+        tbody tr:hover { background: rgba(0,212,255,0.03); }
+        tbody tr:last-child { border-bottom: none; }
+
+        tbody td {
+            padding: 12px 16px;
+            font-size: 12px;
+            vertical-align: middle;
+        }
+
+        .token-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 11px;
+            color: var(--text-bright);
+            letter-spacing: 1px;
+            word-break: break-all;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 2px;
+            font-size: 10px;
+            letter-spacing: 1px;
+            font-weight: normal;
+        }
+
+        .badge-valid {
+            background: rgba(0,255,157,0.1);
+            border: 1px solid rgba(0,255,157,0.3);
+            color: var(--accent2);
+        }
+
+        .badge-expired {
+            background: rgba(255,51,102,0.1);
+            border: 1px solid rgba(255,51,102,0.3);
+            color: var(--danger);
+        }
+
+        .badge-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+        }
+
+        .badge-valid .badge-dot { background: var(--accent2); animation: pulse 2s infinite; }
+        .badge-expired .badge-dot { background: var(--danger); }
+
+        .time-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mini-progress {
+            width: 60px;
+            height: 3px;
+            background: var(--bg3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .mini-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--accent2), var(--accent));
+            transition: width 1s linear;
+        }
+
+        .time-remaining {
+            font-size: 11px;
+            color: var(--accent2);
+            min-width: 30px;
+        }
+
+        .time-expired { color: var(--danger); opacity: 0.7; }
+
+        .table-empty {
+            text-align: center;
+            padding: 48px;
+            opacity: 0.4;
+            font-size: 12px;
+            letter-spacing: 2px;
+        }
+
+        /* ===== REFRESH INDICATOR ===== */
+        .refresh-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            width: 0;
+            transition: width 0.3s;
+            z-index: 999;
+            box-shadow: var(--glow-blue);
+        }
+
+        .refresh-bar.loading { width: 70%; }
+        .refresh-bar.done { width: 100%; transition: width 0.1s; }
+
+        /* ===== FOOTER ===== */
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 10px;
+            letter-spacing: 2px;
+            opacity: 0.3;
+            text-align: center;
+        }
+
+        /* ===== FLASH on new token ===== */
+        @keyframes rowFlash {
+            0% { background: rgba(0,212,255,0.15); }
+            100% { background: transparent; }
+        }
+
+        .new-token { animation: rowFlash 1.5s ease-out; }
+
+        /* ===== NOTIFICATION TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg3);
+            border: 1px solid var(--border-glow);
+            border-left: 3px solid var(--accent2);
+            padding: 12px 20px;
+            font-size: 12px;
+            color: var(--accent2);
+            letter-spacing: 1px;
+            box-shadow: var(--glow-green);
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+        }
+
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        @media (max-width: 768px) {
+            .logo-title { font-size: 20px; }
+            .stat-number { font-size: 36px; }
+            .next-token-bar { flex-wrap: wrap; }
+            thead th:nth-child(3),
+            tbody td:nth-child(3) { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="refresh-bar" id="refreshBar"></div>
+
+<div class="container">
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-inner">
+            <div class="logo">
+                <div class="logo-title">TOKEN VAULT</div>
+                <div class="logo-sub">SECURE TOKEN MANAGER v1.0</div>
+            </div>
+            <div class="header-status">
+                <div class="status-pill">
+                    <div class="status-dot"></div>
+                    <span>SISTEMA ATIVO</span>
+                </div>
+                <div class="clock" id="clockDisplay">--:--:--</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- STATS -->
+    <div class="stats-grid">
+        <div class="stat-card total">
+            <div class="stat-label">// Total Gerados</div>
+            <div class="stat-number" id="statTotal" th:text="${stats.total}">0</div>
+            <div class="stat-icon">◈</div>
+        </div>
+        <div class="stat-card valid">
+            <div class="stat-label">// Tokens Válidos</div>
+            <div class="stat-number" id="statValid" th:text="${stats.valid}">0</div>
+            <div class="stat-icon">◉</div>
+        </div>
+        <div class="stat-card expired">
+            <div class="stat-label">// Tokens Expirados</div>
+            <div class="stat-number" id="statExpired" th:text="${stats.expired}">0</div>
+            <div class="stat-icon">◌</div>
+        </div>
+    </div>
+
+    <!-- NEXT TOKEN COUNTDOWN -->
+    <div class="next-token-bar">
+        <span class="next-token-label">// PRÓXIMO TOKEN</span>
+        <div class="progress-track">
+            <div class="progress-fill" id="nextTokenProgress" style="width: 0%"></div>
+        </div>
+        <div class="next-token-countdown" id="nextTokenCountdown">30s</div>
+        <button class="btn-generate" onclick="generateManual()">⚡ GERAR AGORA</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('all', this)">
+            TODOS <span class="tab-count" id="tabCountAll" th:text="${stats.total}">0</span>
+        </button>
+        <button class="tab valid-tab" onclick="switchTab('valid', this)">
+            VÁLIDOS <span class="tab-count" id="tabCountValid" th:text="${stats.valid}">0</span>
+        </button>
+        <button class="tab expired-tab" onclick="switchTab('expired', this)">
+            EXPIRADOS <span class="tab-count" id="tabCountExpired" th:text="${stats.expired}">0</span>
+        </button>
+    </div>
+
+    <!-- TABLE: ALL -->
+    <div class="table-panel active" id="panel-all">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Token</th>
+                    <th>Criado em</th>
+                    <th>Expira em</th>
+                    <th>Status</th>
+                    <th>Tempo</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-all">
+                <tr th:each="token : ${allTokens}" th:id="'row-' + ${token.id}">
+                    <td th:text="${token.id}" style="opacity:0.4;font-size:11px;"></td>
+                    <td><div class="token-value" th:text="${token.tokenValue}"></div></td>
+                    <td th:text="${#temporals.format(token.createdAt, 'dd/MM HH:mm:ss')}" style="font-size:11px;opacity:0.7;"></td>
+                    <td th:text="${#temporals.format(token.expiresAt, 'dd/MM HH:mm:ss')}" style="font-size:11px;opacity:0.7;"></td>
+                    <td>
+                        <span th:if="${token.valid}" class="badge badge-valid"><span class="badge-dot"></span>VÁLIDO</span>
+                        <span th:unless="${token.valid}" class="badge badge-expired"><span class="badge-dot"></span>EXPIRADO</span>
+                    </td>
+                    <td>
+                        <div th:if="${token.valid}" class="time-bar">
+                            <div class="mini-progress">
+                                <div class="mini-fill" th:style="'width:' + ${(token.secondsRemaining * 100) / 300} + '%'"></div>
+                            </div>
+                            <span class="time-remaining" th:text="${token.secondsRemaining} + 's'"></span>
+                        </div>
+                        <span th:unless="${token.valid}" class="time-expired" style="font-size:11px;">—</span>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(allTokens)}">
+                    <td colspan="6" class="table-empty">AGUARDANDO TOKENS...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TABLE: VALID -->
+    <div class="table-panel" id="panel-valid">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Token</th>
+                    <th>Criado em</th>
+                    <th>Expira em</th>
+                    <th>Segundos Restantes</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-valid">
+                <tr th:each="token : ${validTokens}">
+                    <td th:text="${token.id}" style="opacity:0.4;font-size:11px;"></td>
+                    <td><div class="token-value" th:text="${token.tokenValue}"></div></td>
+                    <td th:text="${#temporals.format(token.createdAt, 'dd/MM HH:mm:ss')}" style="font-size:11px;opacity:0.7;"></td>
+                    <td th:text="${#temporals.format(token.expiresAt, 'dd/MM HH:mm:ss')}" style="font-size:11px;opacity:0.7;"></td>
+                    <td>
+                        <div class="time-bar">
+                            <div class="mini-progress">
+                                <div class="mini-fill" th:style="'width:' + ${(token.secondsRemaining * 100) / 300} + '%'"></div>
+                            </div>
+                            <span class="time-remaining" th:text="${token.secondsRemaining} + 's'"></span>
+                        </div>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(validTokens)}">
+                    <td colspan="5" class="table-empty">NENHUM TOKEN VÁLIDO</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TABLE: EXPIRED -->
+    <div class="table-panel" id="panel-expired">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Token</th>
+                    <th>Criado em</th>
+                    <th>Expirou em</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-expired">
+                <tr th:each="token : ${expiredTokens}">
+                    <td th:text="${token.id}" style="opacity:0.4;font-size:11px;"></td>
+                    <td><div class="token-value" th:text="${token.tokenValue}" style="opacity:0.5;"></div></td>
+                    <td th:text="${#temporals.format(token.createdAt, 'dd/MM HH:mm:ss')}" style="font-size:11px;opacity:0.5;"></td>
+                    <td th:text="${#temporals.format(token.expiresAt, 'dd/MM HH:mm:ss')}" style="font-size:11px;opacity:0.5;"></td>
+                    <td><span class="badge badge-expired"><span class="badge-dot"></span>EXPIRADO</span></td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(expiredTokens)}">
+                    <td colspan="5" class="table-empty">NENHUM TOKEN EXPIRADO</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <footer>TOKEN VAULT &copy; 2024 — AUTO-REFRESH: 5s — GERAÇÃO: 30s — VALIDADE: 5min</footer>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+    // ===== CLOCK =====
+    function updateClock() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2,'0');
+        const m = String(now.getMinutes()).padStart(2,'0');
+        const s = String(now.getSeconds()).padStart(2,'0');
+        document.getElementById('clockDisplay').textContent = `${h}:${m}:${s}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ===== TAB SWITCH =====
+    let activeTab = 'all';
+    function switchTab(tab, el) {
+        activeTab = tab;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.table-panel').forEach(p => p.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('panel-' + tab).classList.add('active');
+    }
+
+    // ===== NEXT TOKEN COUNTDOWN =====
+    let nextTokenSeconds = 30;
+    let lastTokenTime = Date.now();
+
+    function updateNextTokenProgress() {
+        const elapsed = (Date.now() - lastTokenTime) / 1000;
+        const remaining = Math.max(0, 30 - elapsed);
+        const progress = ((30 - remaining) / 30) * 100;
+        document.getElementById('nextTokenProgress').style.width = progress + '%';
+        document.getElementById('nextTokenCountdown').textContent = Math.ceil(remaining) + 's';
+    }
+
+    setInterval(updateNextTokenProgress, 200);
+
+    // ===== TOAST =====
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ===== REFRESH BAR =====
+    function setRefreshBar(state) {
+        const bar = document.getElementById('refreshBar');
+        bar.className = 'refresh-bar';
+        if (state) {
+            void bar.offsetWidth;
+            bar.className = 'refresh-bar ' + state;
+        }
+        if (state === 'done') {
+            setTimeout(() => { bar.style.opacity = '0'; setTimeout(() => { bar.style.opacity = ''; bar.className = 'refresh-bar'; }, 300); }, 400);
+        }
+    }
+
+    // ===== FORMAT DATE =====
+    function fmtDate(iso) {
+        const d = new Date(iso);
+        const pad = n => String(n).padStart(2,'0');
+        return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    // ===== RENDER TABLE =====
+    let knownIds = new Set();
+
+    function renderTable(tbodyId, tokens, showTimeBar) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tokens || tokens.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="table-empty">AGUARDANDO DADOS...</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = '';
+        const isNew = id => !knownIds.has(id);
+        tokens.forEach(t => {
+            const valid = t.valid;
+            const pct = valid ? Math.min(100, (t.secondsRemaining / 300) * 100) : 0;
+            const newClass = isNew(t.id) ? 'new-token' : '';
+
+            let statusCell = valid
+                ? `<span class="badge badge-valid"><span class="badge-dot"></span>VÁLIDO</span>`
+                : `<span class="badge badge-expired"><span class="badge-dot"></span>EXPIRADO</span>`;
+
+            let timeCell = '';
+            if (showTimeBar && valid) {
+                timeCell = `<div class="time-bar"><div class="mini-progress"><div class="mini-fill" style="width:${pct}%"></div></div><span class="time-remaining">${t.secondsRemaining}s</span></div>`;
+            } else if (showTimeBar) {
+                timeCell = `<span class="time-expired" style="font-size:11px;">—</span>`;
+            }
+
+            if (tbodyId === 'tbody-all') {
+                tbody.innerHTML += `
+                    <tr class="${newClass}" id="row-${t.id}">
+                        <td style="opacity:0.4;font-size:11px;">${t.id}</td>
+                        <td><div class="token-value">${t.tokenValue}</div></td>
+                        <td style="font-size:11px;opacity:0.7;">${fmtDate(t.createdAt)}</td>
+                        <td style="font-size:11px;opacity:0.7;">${fmtDate(t.expiresAt)}</td>
+                        <td>${statusCell}</td>
+                        <td>${timeCell}</td>
+                    </tr>`;
+            } else if (tbodyId === 'tbody-valid') {
+                tbody.innerHTML += `
+                    <tr class="${newClass}">
+                        <td style="opacity:0.4;font-size:11px;">${t.id}</td>
+                        <td><div class="token-value">${t.tokenValue}</div></td>
+                        <td style="font-size:11px;opacity:0.7;">${fmtDate(t.createdAt)}</td>
+                        <td style="font-size:11px;opacity:0.7;">${fmtDate(t.expiresAt)}</td>
+                        <td>${timeCell}</td>
+                    </tr>`;
+            } else {
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="opacity:0.4;font-size:11px;">${t.id}</td>
+                        <td><div class="token-value" style="opacity:0.5;">${t.tokenValue}</div></td>
+                        <td style="font-size:11px;opacity:0.5;">${fmtDate(t.createdAt)}</td>
+                        <td style="font-size:11px;opacity:0.5;">${fmtDate(t.expiresAt)}</td>
+                        <td><span class="badge badge-expired"><span class="badge-dot"></span>EXPIRADO</span></td>
+                    </tr>`;
+            }
+        });
+    }
+
+    // ===== FETCH DASHBOARD =====
+    async function fetchDashboard() {
+        setRefreshBar('loading');
+        try {
+            const res = await fetch('/api/tokens/dashboard');
+            const data = await res.json();
+
+            // Detectar novo token
+            const newIds = data.allTokens.map(t => t.id).filter(id => !knownIds.has(id));
+            if (newIds.length > 0 && knownIds.size > 0) {
+                showToast(`⚡ ${newIds.length} novo(s) token(s) gerado(s)`);
+                lastTokenTime = Date.now();
+            }
+
+            // Atualizar stats
+            document.getElementById('statTotal').textContent = data.stats.total;
+            document.getElementById('statValid').textContent = data.stats.valid;
+            document.getElementById('statExpired').textContent = data.stats.expired;
+            document.getElementById('tabCountAll').textContent = data.stats.total;
+            document.getElementById('tabCountValid').textContent = data.stats.valid;
+            document.getElementById('tabCountExpired').textContent = data.stats.expired;
+
+            // Renderizar tabelas
+            renderTable('tbody-all', data.allTokens, true);
+            renderTable('tbody-valid', data.validTokens, true);
+            renderTable('tbody-expired', data.expiredTokens, false);
+
+            // Atualizar IDs conhecidos
+            data.allTokens.forEach(t => knownIds.add(t.id));
+
+            setRefreshBar('done');
+        } catch (e) {
+            console.error('Erro ao buscar dados:', e);
+            setRefreshBar('');
+        }
+    }
+
+    // ===== GENERATE MANUAL =====
+    async function generateManual() {
+        try {
+            await fetch('/api/tokens/generate', { method: 'POST' });
+            lastTokenTime = Date.now();
+            await fetchDashboard();
+            showToast('⚡ Token gerado manualmente!');
+        } catch (e) {
+            console.error('Erro ao gerar token:', e);
+        }
+    }
+
+    // ===== AUTO REFRESH EVERY 5s =====
+    fetchDashboard();
+    setInterval(fetchDashboard, 5000);
+
+    // Sincronizar countdown com o servidor
+    setInterval(() => {
+        // Estimativa local do próximo token (sync a cada 30s com o scheduler)
+    }, 30000);
+</script>
+
+</body>
+</html>

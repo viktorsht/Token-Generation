@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: token-manager-api
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://${DB_HOST}:${DB_PORT:-3306}/tokendb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-tokenuser}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-token123}
