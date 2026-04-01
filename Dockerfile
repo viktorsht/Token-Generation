@@ -16,12 +16,12 @@ RUN mvn clean package -DskipTests -B
 # ============================================================
 # Stage 2: Runtime
 # ============================================================
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-# Cria usuário não-root por segurança
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Cria usuário não-root por segurança (sintaxe Ubuntu/Debian)
+RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 # Copia apenas o jar gerado no stage de build
 COPY --from=builder /app/target/token-manager-1.0.0.jar app.jar
